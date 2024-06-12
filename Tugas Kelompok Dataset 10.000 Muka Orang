@@ -1,0 +1,398 @@
+{
+  "nbformat": 4,
+  "nbformat_minor": 0,
+  "metadata": {
+    "colab": {
+      "provenance": [],
+      "authorship_tag": "ABX9TyO9IcDFuKof8bHWotv7SPCe",
+      "include_colab_link": true
+    },
+    "kernelspec": {
+      "name": "python3",
+      "display_name": "Python 3"
+    },
+    "language_info": {
+      "name": "python"
+    }
+  },
+  "cells": [
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "view-in-github",
+        "colab_type": "text"
+      },
+      "source": [
+        "<a href=\"https://colab.research.google.com/github/CherylTutupoly/Deep-Learning/blob/main/Tugas%20Kelompok%20Dataset%2010.000%20Muka%20Orang\" target=\"_parent\"><img src=\"https://colab.research.google.com/assets/colab-badge.svg\" alt=\"Open In Colab\"/></a>"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 1,
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "NY6XJp2VTXKK",
+        "outputId": "a215db08-6e8b-4f1a-ad67-5d7150b9da88"
+      },
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "Mounted at /content/drive\n"
+          ]
+        }
+      ],
+      "source": [
+        "from google.colab import drive\n",
+        "drive.mount('/content/drive')"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "import os\n",
+        "import glob\n",
+        "from PIL import Image\n",
+        "import numpy as np\n",
+        "import tensorflow as tf\n",
+        "from tensorflow.keras.layers import Dense, Flatten, Reshape, LeakyReLU, BatchNormalization, Conv2D, Conv2DTranspose\n",
+        "from tensorflow.keras.models import Sequential\n",
+        "import matplotlib.pyplot as plt\n"
+      ],
+      "metadata": {
+        "id": "4WiBvCzTUjmx"
+      },
+      "execution_count": 2,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "def load_images(image_dir, image_size=(64, 64)):\n",
+        "    images = []\n",
+        "    for image_path in glob.glob(os.path.join(image_dir, '*.jpg')):\n",
+        "        img = Image.open(image_path).resize(image_size)\n",
+        "        img = np.array(img)\n",
+        "        if img.shape == (64, 64, 3):  # Pastikan gambar memiliki dimensi yang benar\n",
+        "            images.append(img)\n",
+        "    images = np.array(images)\n",
+        "    images = (images.astype(np.float32) - 127.5) / 127.5  # Normalisasi ke rentang [-1, 1]\n",
+        "    return images\n"
+      ],
+      "metadata": {
+        "id": "lmOUUFMlUxld"
+      },
+      "execution_count": 3,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "image_dir = '/content/drive/MyDrive/Dataset Muka Orang'  # Ganti dengan path direktori gambar di Google Drive\n",
+        "x_train = load_images(image_dir)\n",
+        "print(f\"Loaded {x_train.shape[0]} images.\")\n"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "UwhE5pbrU2L-",
+        "outputId": "21824484-d9f3-45ec-8310-11d04ff24337"
+      },
+      "execution_count": 4,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "Loaded 10140 images.\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "def build_generator():\n",
+        "    model = Sequential([\n",
+        "        Dense(256 * 8 * 8, input_dim=100),\n",
+        "        LeakyReLU(alpha=0.2),\n",
+        "        Reshape((8, 8, 256)),\n",
+        "        BatchNormalization(),\n",
+        "\n",
+        "        Conv2DTranspose(128, (4, 4), strides=(2, 2), padding='same'),\n",
+        "        LeakyReLU(alpha=0.2),\n",
+        "        BatchNormalization(),\n",
+        "\n",
+        "        Conv2DTranspose(64, (4, 4), strides=(2, 2), padding='same'),\n",
+        "        LeakyReLU(alpha=0.2),\n",
+        "        BatchNormalization(),\n",
+        "\n",
+        "        Conv2DTranspose(3, (4, 4), strides=(2, 2), padding='same', activation='tanh')\n",
+        "    ])\n",
+        "    return model\n"
+      ],
+      "metadata": {
+        "id": "nHzPSc_UXBkv"
+      },
+      "execution_count": 5,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "generator = build_generator()\n",
+        "generator.summary()\n"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "2bzkd9FjYFv9",
+        "outputId": "34312218-6d2f-48bb-d5cd-18494393ac4a"
+      },
+      "execution_count": 6,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "Model: \"sequential\"\n",
+            "_________________________________________________________________\n",
+            " Layer (type)                Output Shape              Param #   \n",
+            "=================================================================\n",
+            " dense (Dense)               (None, 16384)             1654784   \n",
+            "                                                                 \n",
+            " leaky_re_lu (LeakyReLU)     (None, 16384)             0         \n",
+            "                                                                 \n",
+            " reshape (Reshape)           (None, 8, 8, 256)         0         \n",
+            "                                                                 \n",
+            " batch_normalization (Batch  (None, 8, 8, 256)         1024      \n",
+            " Normalization)                                                  \n",
+            "                                                                 \n",
+            " conv2d_transpose (Conv2DTr  (None, 16, 16, 128)       524416    \n",
+            " anspose)                                                        \n",
+            "                                                                 \n",
+            " leaky_re_lu_1 (LeakyReLU)   (None, 16, 16, 128)       0         \n",
+            "                                                                 \n",
+            " batch_normalization_1 (Bat  (None, 16, 16, 128)       512       \n",
+            " chNormalization)                                                \n",
+            "                                                                 \n",
+            " conv2d_transpose_1 (Conv2D  (None, 32, 32, 64)        131136    \n",
+            " Transpose)                                                      \n",
+            "                                                                 \n",
+            " leaky_re_lu_2 (LeakyReLU)   (None, 32, 32, 64)        0         \n",
+            "                                                                 \n",
+            " batch_normalization_2 (Bat  (None, 32, 32, 64)        256       \n",
+            " chNormalization)                                                \n",
+            "                                                                 \n",
+            " conv2d_transpose_2 (Conv2D  (None, 64, 64, 3)         3075      \n",
+            " Transpose)                                                      \n",
+            "                                                                 \n",
+            "=================================================================\n",
+            "Total params: 2315203 (8.83 MB)\n",
+            "Trainable params: 2314307 (8.83 MB)\n",
+            "Non-trainable params: 896 (3.50 KB)\n",
+            "_________________________________________________________________\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "def build_discriminator():\n",
+        "    model = Sequential([\n",
+        "        Conv2D(64, (4, 4), strides=(2, 2), padding='same', input_shape=(64, 64, 3)),\n",
+        "        LeakyReLU(alpha=0.2),\n",
+        "\n",
+        "        Conv2D(128, (4, 4), strides=(2, 2), padding='same'),\n",
+        "        LeakyReLU(alpha=0.2),\n",
+        "\n",
+        "        Conv2D(256, (4, 4), strides=(2, 2), padding='same'),\n",
+        "        LeakyReLU(alpha=0.2),\n",
+        "\n",
+        "        Flatten(),\n",
+        "        Dense(1, activation='sigmoid')\n",
+        "    ])\n",
+        "    return model\n"
+      ],
+      "metadata": {
+        "id": "bMxbmNBrYKlN"
+      },
+      "execution_count": 7,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "discriminator = build_discriminator()\n",
+        "discriminator.summary()\n",
+        "discriminator.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])\n",
+        "\n",
+        "discriminator.trainable = False\n"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "EVqfO3WCYRcF",
+        "outputId": "c9d5e501-cada-4597-e552-c60cb0173e78"
+      },
+      "execution_count": 8,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "Model: \"sequential_1\"\n",
+            "_________________________________________________________________\n",
+            " Layer (type)                Output Shape              Param #   \n",
+            "=================================================================\n",
+            " conv2d (Conv2D)             (None, 32, 32, 64)        3136      \n",
+            "                                                                 \n",
+            " leaky_re_lu_3 (LeakyReLU)   (None, 32, 32, 64)        0         \n",
+            "                                                                 \n",
+            " conv2d_1 (Conv2D)           (None, 16, 16, 128)       131200    \n",
+            "                                                                 \n",
+            " leaky_re_lu_4 (LeakyReLU)   (None, 16, 16, 128)       0         \n",
+            "                                                                 \n",
+            " conv2d_2 (Conv2D)           (None, 8, 8, 256)         524544    \n",
+            "                                                                 \n",
+            " leaky_re_lu_5 (LeakyReLU)   (None, 8, 8, 256)         0         \n",
+            "                                                                 \n",
+            " flatten (Flatten)           (None, 16384)             0         \n",
+            "                                                                 \n",
+            " dense_1 (Dense)             (None, 1)                 16385     \n",
+            "                                                                 \n",
+            "=================================================================\n",
+            "Total params: 675265 (2.58 MB)\n",
+            "Trainable params: 675265 (2.58 MB)\n",
+            "Non-trainable params: 0 (0.00 Byte)\n",
+            "_________________________________________________________________\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "gan_input = tf.keras.Input(shape=(100,))\n",
+        "generated_image = generator(gan_input)\n",
+        "gan_output = discriminator(generated_image)\n",
+        "\n",
+        "gan = tf.keras.Model(gan_input, gan_output)\n",
+        "gan.compile(optimizer='adam', loss='binary_crossentropy')\n"
+      ],
+      "metadata": {
+        "id": "Dr2JU_MHYX1m"
+      },
+      "execution_count": 9,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "def train_gan(gan, generator, discriminator, x_train, epochs = 10000, batch_size = 128):\n",
+        "    half_batch = batch_size // 2\n"
+      ],
+      "metadata": {
+        "id": "44y0nhr1Yh0P"
+      },
+      "execution_count": 10,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "def train_gan(gan, generator, discriminator, x_train, epochs=10000, batch_size=128):\n",
+        "    half_batch = batch_size // 2\n",
+        "\n",
+        "    for epoch in range(epochs):\n",
+        "        # Latih Discriminator\n",
+        "        idx = np.random.randint(0, x_train.shape[0], half_batch)\n",
+        "        real_images = x_train[idx]\n",
+        "\n",
+        "        noise = np.random.normal(0, 1, (half_batch, 100))\n",
+        "        fake_images = generator.predict(noise)\n",
+        "\n",
+        "        d_loss_real = discriminator.train_on_batch(real_images, np.ones((half_batch, 1)))\n",
+        "        d_loss_fake = discriminator.train_on_batch(fake_images, np.zeros((half_batch, 1)))\n",
+        "        d_loss = 0.5 * np.add(d_loss_real, d_loss_fake)"
+      ],
+      "metadata": {
+        "id": "_QqjIBKmaYUR"
+      },
+      "execution_count": 11,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "def train_gan(gan, generator, discriminator, x_train, epochs=10000, batch_size=128):\n",
+        "    half_batch = batch_size // 2\n",
+        "\n",
+        "    for epoch in range(epochs):\n",
+        "        # Latih Discriminator\n",
+        "        idx = np.random.randint(0, x_train.shape[0], half_batch)\n",
+        "        real_images = x_train[idx]\n",
+        "\n",
+        "        noise = np.random.normal(0, 1, (half_batch, 100))\n",
+        "        fake_images = generator.predict(noise)\n",
+        "\n",
+        "        d_loss_real = discriminator.train_on_batch(real_images, np.ones((half_batch, 1)))\n",
+        "        d_loss_fake = discriminator.train_on_batch(fake_images, np.zeros((half_batch, 1)))\n",
+        "        d_loss = 0.5 * np.add(d_loss_real, d_loss_fake)\n",
+        "\n",
+        "        # Latih Generator\n",
+        "        noise = np.random.normal(0, 1, (batch_size, 100))\n",
+        "        valid_y = np.array([1] * batch_size)  # Generator berusaha membuat Discriminator berpikir gambar adalah nyata\n",
+        "\n",
+        "        g_loss = gan.train_on_batch(noise, valid_y)\n",
+        "\n",
+        "        if epoch % 1000 == 0:\n",
+        "            print(f\"{epoch} [D loss: {d_loss[0]}, acc.: {100*d_loss[1]}%] [G loss: {g_loss}]\")\n",
+        "            save_imgs(generator, epoch)"
+      ],
+      "metadata": {
+        "id": "YNa8nK8AiHLg"
+      },
+      "execution_count": 12,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "source": [],
+      "metadata": {
+        "id": "7dZdRNREboJq"
+      }
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "def save_imgs(generator, epoch, examples=10, dim=(1, 10), figsize=(10, 1)):\n",
+        "    noise = np.random.normal(0, 1, (examples, 100))\n",
+        "    generated_images = generator.predict(noise)\n",
+        "    generated_images = generated_images * 0.5 + 0.5  # Skala kembali ke rentang [0, 1]\n",
+        "\n",
+        "    plt.figure(figsize=figsize)\n",
+        "    for i in range(examples):\n",
+        "        plt.subplot(dim[0], dim[1], i+1)\n",
+        "        plt.imshow((generated_images[i] * 127.5 + 127.5).astype(np.uint8))  # Konversi kembali ke uint8\n",
+        "        plt.axis('off')\n",
+        "    plt.tight_layout()\n",
+        "    plt.savefig(f\"gan_generated_image_epoch_{epoch}.png\")\n",
+        "\n",
+        "    train_gan(gan, generator, discriminator, x_train)"
+      ],
+      "metadata": {
+        "id": "jeUtDMx5iLRp"
+      },
+      "execution_count": 13,
+      "outputs": []
+    }
+  ]
+}
